@@ -1,3 +1,10 @@
+#####
+# 
+# An incomplete list of people who have put out work similar
+# to my own interests. Many great researchers missing!
+# 
+#####
+
 RESEARCHERS = [
     "Albert Gu",
     "Alexander M Rush",
@@ -105,6 +112,7 @@ RESEARCHERS = [
     "Taylor Berg-Kirkpatrick",
     "Trevor Darrell",
     "Tri Dao",
+    "Valentina Pyatkin",
     "Victoria Graf",
     "Wei Xu",
     "William Held",
