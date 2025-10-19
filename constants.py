@@ -1,6 +1,6 @@
 #####
 # 
-# An incomplete list of people who have put out work similar
+# A *very low recall* list of people who have put out work similar
 # to my own interests. Many great researchers missing!
 # 
 #####
