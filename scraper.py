@@ -5,6 +5,7 @@ from dataclasses import dataclass, asdict
 from typing import List, Dict, Any, Optional
 from functools import partial
 from multiprocessing.pool import ThreadPool
+from openreview.api.client import Note
 from tqdm import tqdm
 
 from openreview import Client
@@ -34,7 +35,7 @@ class Review:
 class Paper:
     title: str
     abstract: Optional[str]
-    year: int
+    year: Optional[int]
     url: str
     pdf: str
     authors: List[str]
@@ -148,57 +149,57 @@ def get_papers(
 
 def get_reviews_for_paper(client: Client, paper_id: str, venue: str) -> List[Review]:
     """Fetch reviews for a specific paper."""
-    try:
-        year = venue.split("/")[2] if len(venue.split("/")) > 2 else "2024"
-        paper_number = (
-            paper_id.split("Submission")[-1] if "Submission" in paper_id else "1"
+    paper_number = (
+        paper_id.split("Submission")[-1] if "Submission" in paper_id else "1"
+    )
+
+    review_invitation = f"{venue}/Paper{paper_number}/-/Official_Review"
+    reviews = client.get_all_notes(invitation=review_invitation)
+
+    review_data = []
+    for review in reviews:
+        review_data.append(
+            Review(
+                reviewer=review.signatures[0] if review.signatures else "",
+                rating=review.content.get("rating", ""),
+                confidence=review.content.get("confidence", ""),
+                review=review.content.get("review", ""),
+                summary=review.content.get("summary", ""),
+                strengths=review.content.get("strengths", ""),
+                weaknesses=review.content.get("weaknesses", ""),
+                review_id=review.id,
+                date=review.date,
+            )
         )
 
-        review_invitation = f"{venue}/Paper{paper_number}/-/Official_Review"
-        reviews = client.get_all_notes(invitation=review_invitation)
-
-        review_data = []
-        for review in reviews:
-            review_data.append(
-                Review(
-                    reviewer=review.signatures[0] if review.signatures else "",
-                    rating=review.content.get("rating", ""),
-                    confidence=review.content.get("confidence", ""),
-                    review=review.content.get("review", ""),
-                    summary=review.content.get("summary", ""),
-                    strengths=review.content.get("strengths", ""),
-                    weaknesses=review.content.get("weaknesses", ""),
-                    review_id=review.id,
-                    date=review.date,
-                )
-            )
-
-        return review_data
-    except Exception as e:
-        print(f"Error fetching reviews for {paper_id}: {e}")
-        return []
+    return review_data
 
 
 def _process_single_paper(
-    conf_entry: Dict[str, Any],
+    note: Note,  # OpenReview Note object
     year: Optional[str],
     config: ConferenceConfig,
     client: Optional[Client],
     conf_name: str,
 ) -> tuple[Optional[Paper], Optional[str]]:
-    # Normalize content values
-    for k, v in conf_entry["content"].items():
+    # Get content as dict - handle both v1 and v2 API formats
+    content = {}
+    if hasattr(note, 'content'):
+        content = note.content if isinstance(note.content, dict) else {}
+    
+    # Normalize content values (v2 API wraps values in {"value": ...})
+    for k, v in content.items():
         if isinstance(v, dict) and "value" in v.keys():
-            conf_entry["content"][k] = v["value"]
+            content[k] = v["value"]
 
-    bibtex = conf_entry["content"].get("_bibtex", "")
+    bibtex = content.get("_bibtex", "")
     if bibtex != "":
         bibkey = bibtex.split("{")[1].split(",")[0].replace("\n", "")
     else:
         bibkey = None
 
-    venue = conf_entry["content"].get("venue", "Submitted")
-    venueid = conf_entry["content"].get("venueid")
+    venue = content.get("venue", "Submitted")
+    venueid = content.get("venueid")
 
     # Normalize venue ID based on conference
     if venueid:
@@ -234,70 +235,84 @@ def _process_single_paper(
     else:
         venue_type = "poster"
 
-    if "invitation" in conf_entry:
-        invitation = conf_entry["invitation"]
-    elif "invitations" in conf_entry:
-        invitation = str(conf_entry["invitations"])
-    else:
-        invitation = None
+    # Get invitation
+    invitation = None
+    if hasattr(note, 'invitation'):
+        invitation = note.invitation
+    elif hasattr(note, 'invitations'):
+        invitation = str(note.invitations)
 
     reviews = []
 
-    if "directReplies" in conf_entry:
-        for reply in conf_entry["directReplies"]:
-            if reply.get("invitation", "").endswith("/-/Official_Review"):
+    # Check for direct replies (from details parameter in API call)
+    if hasattr(note, 'details') and note.details and 'directReplies' in note.details:
+        for reply in note.details['directReplies']:
+            invitation_str = reply.get('invitation', '') if isinstance(reply, dict) else getattr(reply, 'invitation', '')
+            if invitation_str.endswith("/-/Official_Review"):
+                reply_content = reply.get('content', {}) if isinstance(reply, dict) else getattr(reply, 'content', {})
                 reviews.append(
                     Review(
                         reviewer=(
-                            reply.get("signatures", [""])[0]
-                            if reply.get("signatures")
+                            reply.get('signatures', [''])[0] if isinstance(reply, dict) else getattr(reply, 'signatures', [''])[0]
+                            if (reply.get('signatures') if isinstance(reply, dict) else getattr(reply, 'signatures', None))
                             else ""
                         ),
-                        rating=reply.get("content", {}).get("rating", ""),
-                        confidence=reply.get("content", {}).get("confidence", ""),
-                        review=reply.get("content", {}).get("review", ""),
-                        summary=reply.get("content", {}).get("summary", ""),
-                        strengths=reply.get("content", {}).get("strengths", ""),
-                        weaknesses=reply.get("content", {}).get("weaknesses", ""),
-                        review_id=reply.get("id", ""),
-                        date=reply.get("date", 0),
+                        rating=reply_content.get("rating", ""),
+                        confidence=reply_content.get("confidence", ""),
+                        review=reply_content.get("review", ""),
+                        summary=reply_content.get("summary", ""),
+                        strengths=reply_content.get("strengths", ""),
+                        weaknesses=reply_content.get("weaknesses", ""),
+                        review_id=reply.get('id', '') if isinstance(reply, dict) else getattr(reply, 'id', ''),
+                        date=reply.get('date', 0) if isinstance(reply, dict) else getattr(reply, 'date', 0),
                     )
                 )
 
-    if "replies" in conf_entry:
-        for reply in conf_entry["replies"]:
-            if reply.get("invitation", "").endswith("/-/Official_Review"):
+    # Check for replies attribute (alternative location)
+    if hasattr(note, 'replies') and note.replies:
+        for reply in note.replies:
+            invitation_str = reply.get('invitation', '') if isinstance(reply, dict) else getattr(reply, 'invitation', '')
+            if invitation_str.endswith("/-/Official_Review"):
+                reply_content = reply.get('content', {}) if isinstance(reply, dict) else getattr(reply, 'content', {})
                 reviews.append(
                     Review(
                         reviewer=(
-                            reply.get("signatures", [""])[0]
-                            if reply.get("signatures")
+                            reply.get('signatures', [''])[0] if isinstance(reply, dict) else getattr(reply, 'signatures', [''])[0]
+                            if (reply.get('signatures') if isinstance(reply, dict) else getattr(reply, 'signatures', None))
                             else ""
                         ),
-                        rating=reply.get("content", {}).get("rating", ""),
-                        confidence=reply.get("content", {}).get("confidence", ""),
-                        review=reply.get("content", {}).get("review", ""),
-                        summary=reply.get("content", {}).get("summary", ""),
-                        strengths=reply.get("content", {}).get("strengths", ""),
-                        weaknesses=reply.get("content", {}).get("weaknesses", ""),
-                        review_id=reply.get("id", ""),
-                        date=reply.get("date", 0),
+                        rating=reply_content.get("rating", ""),
+                        confidence=reply_content.get("confidence", ""),
+                        review=reply_content.get("review", ""),
+                        summary=reply_content.get("summary", ""),
+                        strengths=reply_content.get("strengths", ""),
+                        weaknesses=reply_content.get("weaknesses", ""),
+                        review_id=reply.get('id', '') if isinstance(reply, dict) else getattr(reply, 'id', ''),
+                        date=reply.get('date', 0) if isinstance(reply, dict) else getattr(reply, 'date', 0),
                     )
                 )
 
-    if not reviews and client:
+    # Fallback: try to fetch reviews separately
+    if not reviews and client and hasattr(note, 'id'):
         try:
-            reviews = get_reviews_for_paper(client, conf_entry["id"], conf_name)
+            reviews = get_reviews_for_paper(client, note.id, conf_name)
         except Exception as e:
             pass  # Silently fail for review fetching
 
+    # Get paper fields with safe defaults
+    note_id = getattr(note, 'id', '')
+    title = content.get("title", "")
+    abstract = content.get("abstract")
+    pdf_path = content.get("pdf", "")
+    authors = content.get("authors", [])
+
     paper = Paper(
-        title=conf_entry["content"]["title"],
-        abstract=conf_entry["content"].get("abstract"),
-        year=int(year) if year else 2024,
-        url="https://openreview.net/forum?id=" + conf_entry["id"],
-        pdf="https://openreview.net" + conf_entry["content"]["pdf"],
-        authors=conf_entry["content"]["authors"],
+        title=title,
+        abstract=abstract,
+        year=int(year) if year else None,
+        url="https://openreview.net/forum?id=" + note_id,
+        pdf="https://openreview.net" + pdf_path if pdf_path else "",
+        authors=authors,
         venue=venue,
         venueid=venueid,
         bibtex=bibtex,
@@ -321,8 +336,8 @@ def preprocess_papers(
     dataset = []
     config = CONFERENCE_CONFIGS[conference.lower()]
 
-    for conf_name, conf_entries in papers.items():
-        print(f"Processing {len(conf_entries)} papers from {conf_name}")
+    for conf_name, notes in papers.items():
+        print(f"Processing {len(notes)} papers from {conf_name}")
 
         # Extract year from venue name
         venue_parts = conf_name.split("/")
@@ -341,8 +356,8 @@ def preprocess_papers(
         with ThreadPool(num_workers) as pool:
             results = list(
                 tqdm(
-                    pool.imap(process_paper, conf_entries),
-                    total=len(conf_entries),
+                    pool.imap(process_paper, notes),
+                    total=len(notes),
                     desc=f"Processing {conf_name}",
                     unit="paper",
                 )
@@ -360,7 +375,7 @@ def preprocess_papers(
                 dataset.append(paper)
 
         print(
-            f"Processed {len(conf_entries)-skipped-errors} / {len(conf_entries)} entries for {conf_name} "
+            f"Processed {len(notes)-skipped-errors} / {len(notes)} entries for {conf_name} "
             f"(skipped: {skipped}, errors: {errors})"
         )
 
@@ -404,10 +419,6 @@ def download_papers(
     print("Downloading papers...")
     papers = get_papers([clientv1, clientv2], venues, conference, only_accepted)
 
-    for venue in papers:
-        for i, paper in enumerate(papers[venue]):
-            papers[venue][i] = paper.to_json()
-
     print("Processing papers...")
     processed_papers = preprocess_papers(papers, conference, clientv1)
 
@@ -447,9 +458,9 @@ def main():
         "--years", nargs="+", type=int, help="Years to search (default: 2013-2025)"
     )
     parser.add_argument(
-        "--include_rejected",
+        "--include-all",
         action="store_true",
-        help="Include rejected papers",
+        help="Include all submissions (accepted, under review, and rejected)",
     )
 
     args = parser.parse_args()
@@ -458,7 +469,7 @@ def main():
         conference=args.conference,
         output_path=args.output,
         years=args.years,
-        only_accepted=not args.include_rejected,
+        only_accepted=not args.include_all,
     )
 
 
