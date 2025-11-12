@@ -15,6 +15,7 @@ ARXIV_RESEARCHERS = [
     "Ashwinee Panda",
     "Christopher D Manning",
     "Christopher Potts",
+    "Christopher Ré",
     "Clémentine Fourrier",
     "Colin Raffel",
     "Dan Jurafsky",
