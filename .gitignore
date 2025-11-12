@@ -1,3 +1,6 @@
 /.venv
 /__pycache__
 /researcher_papers.parquet
+.openreview
+*.json
+*.cpython*
