@@ -21,6 +21,6 @@ pip install openreview-py
 
 # example commands
 python scraper.py --conference colm --years 2024 2025
-python scraper.py --conference iclr --years 2026 -o iclr_papers.json
-python scraper.py --conference neurips --all-papers
+python scraper.py --conference iclr --years 2026
+python scraper.py --conference neurips --years 2026
 ```
