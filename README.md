@@ -18,9 +18,14 @@ export OPENREVIEW_USER="..."
 export OPENREVIEW_PASS="..."
 
 pip install openreview-py
+pip install "deviousutils[all]" pandas # to push to hf
+pip install ipywidgets jupyter # for notebooks
 
 # example commands
 python scraper.py --conference colm --years 2024 2025
 python scraper.py --conference iclr --years 2026
 python scraper.py --conference neurips --years 2026
+
+# get submissions before reviews
+python scraper.py --conference iclr --years 2026 -o iclr_submissions.json --include-all
 ```

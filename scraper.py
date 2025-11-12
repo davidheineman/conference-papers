@@ -147,26 +147,66 @@ def get_papers(
     return papers
 
 
-def get_reviews_for_paper(client: Client, paper_id: str, venue: str) -> List[Review]:
+def get_reviews_for_paper(client: Client, paper_id: str, venue: str, paper_invitation: Optional[str] = None) -> List[Review]:
     """Fetch reviews for a specific paper."""
-    paper_number = (
-        paper_id.split("Submission")[-1] if "Submission" in paper_id else "1"
-    )
-
-    review_invitation = f"{venue}/Paper{paper_number}/-/Official_Review"
-    reviews = client.get_all_notes(invitation=review_invitation)
+    # Extract paper/submission number from invitation
+    paper_number = None
+    
+    if paper_invitation:
+        # Try to extract from invitation string or list
+        invitations = paper_invitation if isinstance(paper_invitation, list) else [paper_invitation]
+        
+        for inv in invitations:
+            if 'Submission' in inv or 'Paper' in inv:
+                # Extract number from something like "ICLR.cc/2026/Conference/Submission4956/-/Full_Submission"
+                # or "ICLR.cc/2026/Conference/Paper5678/-/Official_Review"
+                parts = inv.split('/')
+                for part in parts:
+                    if part.startswith('Submission') or part.startswith('Paper'):
+                        # Extract just the number
+                        num = part.replace('Submission', '').replace('Paper', '')
+                        if num.isdigit():
+                            paper_number = num
+                            break
+                if paper_number:
+                    break
+    
+    # Fallback to old logic if no invitation provided
+    if not paper_number:
+        paper_number = paper_id.split("Submission")[-1] if "Submission" in paper_id else "1"
+    
+    # Try both Paper and Submission formats
+    review_invitations = [
+        f"{venue}/Submission{paper_number}/-/Official_Review",
+        f"{venue}/Paper{paper_number}/-/Official_Review"
+    ]
+    
+    reviews_notes = []
+    for review_invitation in review_invitations:
+        try:
+            reviews_notes = client.get_all_notes(invitation=review_invitation)
+            if reviews_notes:
+                break
+        except Exception:
+            continue
 
     review_data = []
-    for review in reviews:
+    for review in reviews_notes:
+        # Normalize content (v2 API wraps values in {"value": ...})
+        content = review.content if isinstance(review.content, dict) else {}
+        for k, v in content.items():
+            if isinstance(v, dict) and "value" in v.keys():
+                content[k] = v["value"]
+        
         review_data.append(
             Review(
                 reviewer=review.signatures[0] if review.signatures else "",
-                rating=review.content.get("rating", ""),
-                confidence=review.content.get("confidence", ""),
-                review=review.content.get("review", ""),
-                summary=review.content.get("summary", ""),
-                strengths=review.content.get("strengths", ""),
-                weaknesses=review.content.get("weaknesses", ""),
+                rating=content.get("rating", ""),
+                confidence=content.get("confidence", ""),
+                review=content.get("review", ""),
+                summary=content.get("summary", ""),
+                strengths=content.get("strengths", ""),
+                weaknesses=content.get("weaknesses", ""),
                 review_id=review.id,
                 date=review.date,
             )
@@ -180,6 +220,7 @@ def _process_single_paper(
     year: Optional[str],
     config: ConferenceConfig,
     client: Optional[Client],
+    client_v2: Optional[OpenReviewClient],
     conf_name: str,
 ) -> tuple[Optional[Paper], Optional[str]]:
     # Get content as dict - handle both v1 and v2 API formats
@@ -247,9 +288,32 @@ def _process_single_paper(
     # Check for direct replies (from details parameter in API call)
     if hasattr(note, 'details') and note.details and 'directReplies' in note.details:
         for reply in note.details['directReplies']:
-            invitation_str = reply.get('invitation', '') if isinstance(reply, dict) else getattr(reply, 'invitation', '')
-            if invitation_str.endswith("/-/Official_Review"):
+            # Check both 'invitation' (singular) and 'invitations' (plural, list)
+            invitation_str = ''
+            if isinstance(reply, dict):
+                # Try 'invitations' first (v2 API uses this)
+                invitations = reply.get('invitations', reply.get('invitation', ''))
+                if isinstance(invitations, list):
+                    # Check if any invitation ends with Official_Review
+                    invitation_str = next((inv for inv in invitations if '/-/Official_Review' in inv), '')
+                else:
+                    invitation_str = invitations
+            else:
+                invitation_str = getattr(reply, 'invitation', '') or getattr(reply, 'invitations', '')
+                if isinstance(invitation_str, list):
+                    invitation_str = next((inv for inv in invitation_str if '/-/Official_Review' in inv), '')
+            
+            if '/-/Official_Review' in invitation_str:
                 reply_content = reply.get('content', {}) if isinstance(reply, dict) else getattr(reply, 'content', {})
+                
+                # Normalize content (v2 API wraps values in {"value": ...})
+                normalized_content = {}
+                for k, v in reply_content.items():
+                    if isinstance(v, dict) and "value" in v.keys():
+                        normalized_content[k] = v["value"]
+                    else:
+                        normalized_content[k] = v
+                
                 reviews.append(
                     Review(
                         reviewer=(
@@ -257,12 +321,12 @@ def _process_single_paper(
                             if (reply.get('signatures') if isinstance(reply, dict) else getattr(reply, 'signatures', None))
                             else ""
                         ),
-                        rating=reply_content.get("rating", ""),
-                        confidence=reply_content.get("confidence", ""),
-                        review=reply_content.get("review", ""),
-                        summary=reply_content.get("summary", ""),
-                        strengths=reply_content.get("strengths", ""),
-                        weaknesses=reply_content.get("weaknesses", ""),
+                        rating=normalized_content.get("rating", ""),
+                        confidence=normalized_content.get("confidence", ""),
+                        review=normalized_content.get("review", ""),
+                        summary=normalized_content.get("summary", ""),
+                        strengths=normalized_content.get("strengths", ""),
+                        weaknesses=normalized_content.get("weaknesses", ""),
                         review_id=reply.get('id', '') if isinstance(reply, dict) else getattr(reply, 'id', ''),
                         date=reply.get('date', 0) if isinstance(reply, dict) else getattr(reply, 'date', 0),
                     )
@@ -271,9 +335,30 @@ def _process_single_paper(
     # Check for replies attribute (alternative location)
     if hasattr(note, 'replies') and note.replies:
         for reply in note.replies:
-            invitation_str = reply.get('invitation', '') if isinstance(reply, dict) else getattr(reply, 'invitation', '')
-            if invitation_str.endswith("/-/Official_Review"):
+            # Check both 'invitation' (singular) and 'invitations' (plural, list)
+            invitation_str = ''
+            if isinstance(reply, dict):
+                invitations = reply.get('invitations', reply.get('invitation', ''))
+                if isinstance(invitations, list):
+                    invitation_str = next((inv for inv in invitations if '/-/Official_Review' in inv), '')
+                else:
+                    invitation_str = invitations
+            else:
+                invitation_str = getattr(reply, 'invitation', '') or getattr(reply, 'invitations', '')
+                if isinstance(invitation_str, list):
+                    invitation_str = next((inv for inv in invitation_str if '/-/Official_Review' in inv), '')
+            
+            if '/-/Official_Review' in invitation_str:
                 reply_content = reply.get('content', {}) if isinstance(reply, dict) else getattr(reply, 'content', {})
+                
+                # Normalize content (v2 API wraps values in {"value": ...})
+                normalized_content = {}
+                for k, v in reply_content.items():
+                    if isinstance(v, dict) and "value" in v.keys():
+                        normalized_content[k] = v["value"]
+                    else:
+                        normalized_content[k] = v
+                
                 reviews.append(
                     Review(
                         reviewer=(
@@ -281,23 +366,29 @@ def _process_single_paper(
                             if (reply.get('signatures') if isinstance(reply, dict) else getattr(reply, 'signatures', None))
                             else ""
                         ),
-                        rating=reply_content.get("rating", ""),
-                        confidence=reply_content.get("confidence", ""),
-                        review=reply_content.get("review", ""),
-                        summary=reply_content.get("summary", ""),
-                        strengths=reply_content.get("strengths", ""),
-                        weaknesses=reply_content.get("weaknesses", ""),
+                        rating=normalized_content.get("rating", ""),
+                        confidence=normalized_content.get("confidence", ""),
+                        review=normalized_content.get("review", ""),
+                        summary=normalized_content.get("summary", ""),
+                        strengths=normalized_content.get("strengths", ""),
+                        weaknesses=normalized_content.get("weaknesses", ""),
                         review_id=reply.get('id', '') if isinstance(reply, dict) else getattr(reply, 'id', ''),
                         date=reply.get('date', 0) if isinstance(reply, dict) else getattr(reply, 'date', 0),
                     )
                 )
 
-    # Fallback: try to fetch reviews separately
-    if not reviews and client and hasattr(note, 'id'):
-        try:
-            reviews = get_reviews_for_paper(client, note.id, conf_name)
-        except Exception as e:
-            pass  # Silently fail for review fetching
+    # Fallback: try to fetch reviews separately (if not found in direct replies)
+    if not reviews and hasattr(note, 'id'):
+        # Try v2 client first, then v1
+        for try_client in [client_v2, client]:
+            if try_client and not reviews:
+                try:
+                    reviews = get_reviews_for_paper(try_client, note.id, conf_name, invitation)
+                    if reviews:
+                        break
+                except Exception:
+                    # Silently try next client
+                    pass
 
     # Get paper fields with safe defaults
     note_id = getattr(note, 'id', '')
@@ -330,13 +421,22 @@ def preprocess_papers(
     papers: Dict[str, List[Any]],
     conference: str = "colm",
     client: Client = None,
+    client_v2: Optional[OpenReviewClient] = None,
     num_workers: int = 8,
+    limit: Optional[int] = None,
 ) -> List[Paper]:
     """ Process papers in parallel. """
     dataset = []
     config = CONFERENCE_CONFIGS[conference.lower()]
 
     for conf_name, notes in papers.items():
+        # Apply limit if specified
+        if limit is not None:
+            remaining = limit - len(dataset)
+            if remaining <= 0:
+                break
+            notes = notes[:remaining]
+        
         print(f"Processing {len(notes)} papers from {conf_name}")
 
         # Extract year from venue name
@@ -349,6 +449,7 @@ def preprocess_papers(
             year=year,
             config=config,
             client=client,
+            client_v2=client_v2,
             conf_name=conf_name,
         )
 
@@ -387,6 +488,7 @@ def download_papers(
     output_path: Optional[str] = None,
     years: Optional[List[int]] = None,
     only_accepted: bool = True,
+    limit: Optional[int] = None,
 ):
     """ Download papers from OpenReview. """
     conference = conference.lower()
@@ -420,7 +522,7 @@ def download_papers(
     papers = get_papers([clientv1, clientv2], venues, conference, only_accepted)
 
     print("Processing papers...")
-    processed_papers = preprocess_papers(papers, conference, clientv1)
+    processed_papers = preprocess_papers(papers, conference, clientv1, clientv2, limit=limit)
 
     # Convert Paper dataclasses to dictionaries for JSON serialization
     papers_as_dicts = [paper.to_dict() for paper in processed_papers]
@@ -462,6 +564,11 @@ def main():
         action="store_true",
         help="Include all submissions (accepted, under review, and rejected)",
     )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        help="Limit the number of papers to process",
+    )
 
     args = parser.parse_args()
 
@@ -470,6 +577,7 @@ def main():
         output_path=args.output,
         years=args.years,
         only_accepted=not args.include_all,
+        limit=args.limit,
     )
 
 
