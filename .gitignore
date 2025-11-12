@@ -4,3 +4,4 @@
 .openreview
 *.json
 *.cpython*
+*.egg-info
