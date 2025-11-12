@@ -27,5 +27,5 @@ python scraper.py --conference icml --years 2026
 python scraper.py --conference neurips --years 2026
 
 # get submissions before reviews
-python scraper.py --conference iclr --years 2026 --include-all --push-to-hf davidheineman/iclr-2026 -o 2026-iclr/papers.json
+python scraper.py --conference iclr --years 2026 --include-all --push-to-hf davidheineman/iclr-2026
 ```
