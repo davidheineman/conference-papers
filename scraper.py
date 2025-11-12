@@ -555,7 +555,7 @@ def download_papers(
         
         try:
             # Push to HuggingFace
-            push_parquet_to_hf(tmp_path, push_to_hf, private=False)
+            push_parquet_to_hf(tmp_path, push_to_hf, private=False, overwrite=True)
             print(f"Successfully pushed to HuggingFace dataset: {push_to_hf}")
         finally:
             # Clean up temporary file
