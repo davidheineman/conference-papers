@@ -528,6 +528,19 @@ def download_papers(
 
     # Convert Paper dataclasses to dictionaries for JSON serialization
     papers_as_dicts = [paper.to_dict() for paper in processed_papers]
+    
+    # Save to JSON if output path is specified
+    if output_path:
+        os.makedirs(
+            os.path.dirname(output_path) if os.path.dirname(output_path) else ".",
+            exist_ok=True,
+        )
+        with open(output_path, "w", encoding="utf-8") as json_file:
+            json.dump(papers_as_dicts, json_file, indent=4)
+
+        print(
+            f"Successfully saved {len(processed_papers)} {conference.upper()} papers to {output_path}"
+        )
 
     # Push to HuggingFace if requested
     if push_to_hf:
@@ -548,19 +561,6 @@ def download_papers(
             # Clean up temporary file
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
-    
-    # Save to JSON if output path is specified
-    if output_path:
-        os.makedirs(
-            os.path.dirname(output_path) if os.path.dirname(output_path) else ".",
-            exist_ok=True,
-        )
-        with open(output_path, "w", encoding="utf-8") as json_file:
-            json.dump(papers_as_dicts, json_file, indent=4)
-
-        print(
-            f"Successfully saved {len(processed_papers)} {conference.upper()} papers to {output_path}"
-        )
 
 
 def main():

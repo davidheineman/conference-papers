@@ -10,7 +10,8 @@ dependencies = [
     "openreview-py",
     "deviousutils[all]",
     "ipywidgets",
-    "jupyter"
+    "jupyter",
+    "pyarrow"
 ]
 
 [tool.setuptools]
