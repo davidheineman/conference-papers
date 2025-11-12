@@ -1,15 +1,18 @@
 import os
 import json
 import argparse
+import tempfile
 from dataclasses import dataclass, asdict
 from typing import List, Dict, Any, Optional
 from functools import partial
 from multiprocessing.pool import ThreadPool
 from openreview.api.client import Note
 from tqdm import tqdm
+import pandas as pd
 
 from openreview import Client
 from openreview.api import OpenReviewClient
+from deviousutils.hf import push_parquet_to_hf
 
 
 @dataclass
@@ -60,6 +63,7 @@ class Paper:
 CONFERENCE_CONFIGS = {
     "colm": ConferenceConfig(venue_keywords=["colmweb"], venue_id_prefix="COLM"),
     "iclr": ConferenceConfig(venue_keywords=["ICLR.cc"], venue_id_prefix="ICLR"),
+    "icml": ConferenceConfig(venue_keywords=["ICML.cc"], venue_id_prefix="ICML"),
     "neurips": ConferenceConfig(
         venue_keywords=["NeurIPS.cc"], venue_id_prefix="NeurIPS"
     ),
@@ -489,6 +493,7 @@ def download_papers(
     years: Optional[List[int]] = None,
     only_accepted: bool = True,
     limit: Optional[int] = None,
+    push_to_hf: Optional[str] = None,
 ):
     """ Download papers from OpenReview. """
     conference = conference.lower()
@@ -498,9 +503,6 @@ def download_papers(
         )
 
     config = CONFERENCE_CONFIGS[conference]
-
-    if output_path is None:
-        output_path = f"{conference}_papers.json"
 
     if years is None:
         years = list(range(2013, 2026))
@@ -527,16 +529,38 @@ def download_papers(
     # Convert Paper dataclasses to dictionaries for JSON serialization
     papers_as_dicts = [paper.to_dict() for paper in processed_papers]
 
-    os.makedirs(
-        os.path.dirname(output_path) if os.path.dirname(output_path) else ".",
-        exist_ok=True,
-    )
-    with open(output_path, "w", encoding="utf-8") as json_file:
-        json.dump(papers_as_dicts, json_file, indent=4)
+    # Push to HuggingFace if requested
+    if push_to_hf:
+        print(f"Pushing to HuggingFace dataset: {push_to_hf}")
+        # Convert to DataFrame
+        df = pd.DataFrame(papers_as_dicts)
+        
+        # Save to temporary parquet file
+        with tempfile.NamedTemporaryFile(mode='wb', suffix='.parquet', delete=False) as tmp:
+            tmp_path = tmp.name
+            df.to_parquet(tmp_path, index=False)
+        
+        try:
+            # Push to HuggingFace
+            push_parquet_to_hf(tmp_path, push_to_hf, private=False)
+            print(f"Successfully pushed to HuggingFace dataset: {push_to_hf}")
+        finally:
+            # Clean up temporary file
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+    
+    # Save to JSON if output path is specified
+    if output_path:
+        os.makedirs(
+            os.path.dirname(output_path) if os.path.dirname(output_path) else ".",
+            exist_ok=True,
+        )
+        with open(output_path, "w", encoding="utf-8") as json_file:
+            json.dump(papers_as_dicts, json_file, indent=4)
 
-    print(
-        f"Successfully saved {len(processed_papers)} {conference.upper()} papers to {output_path}"
-    )
+        print(
+            f"Successfully saved {len(processed_papers)} {conference.upper()} papers to {output_path}"
+        )
 
 
 def main():
@@ -554,7 +578,7 @@ def main():
     parser.add_argument(
         "-o",
         "--output",
-        help="Output path (default: {conference}_papers.json)",
+        help="Output path for JSON file (optional if --push-to-hf is specified)",
     )
     parser.add_argument(
         "--years", nargs="+", type=int, help="Years to search (default: 2013-2025)"
@@ -569,6 +593,11 @@ def main():
         type=int,
         help="Limit the number of papers to process",
     )
+    parser.add_argument(
+        "--push-to-hf",
+        type=str,
+        help="Push to HuggingFace dataset (e.g., 'username/dataset-name')",
+    )
 
     args = parser.parse_args()
 
@@ -578,6 +607,7 @@ def main():
         years=args.years,
         only_accepted=not args.include_all,
         limit=args.limit,
+        push_to_hf=args.push_to_hf,
     )
 
 

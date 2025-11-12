@@ -10,6 +10,7 @@ Details: I use [`constants.py`](constants.py) to filter to authors whose work I 
 
 - https://huggingface.co/datasets/davidheineman/colm-2025
 - https://huggingface.co/datasets/davidheineman/neurips-2025
+- https://huggingface.co/datasets/davidheineman/iclr-2026
 
 ### scraper
 
@@ -17,15 +18,14 @@ Details: I use [`constants.py`](constants.py) to filter to authors whose work I 
 export OPENREVIEW_USER="..."
 export OPENREVIEW_PASS="..."
 
-pip install openreview-py
-pip install "deviousutils[all]" pandas # to push to hf
-pip install ipywidgets jupyter # for notebooks
+pip install -e .
 
 # example commands
 python scraper.py --conference colm --years 2024 2025
 python scraper.py --conference iclr --years 2026
+python scraper.py --conference icml --years 2026
 python scraper.py --conference neurips --years 2026
 
 # get submissions before reviews
-python scraper.py --conference iclr --years 2026 -o iclr_submissions.json --include-all
+python scraper.py --conference iclr --years 2026 --include-all --push-to-hf davidheineman/iclr-2026
 ```
