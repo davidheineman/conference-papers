@@ -6,6 +6,7 @@
 #####
 
 ARXIV_RESEARCHERS = [
+    "Akari Asai",
     "Albert Gu",
     "Alexander M Rush",
     "Alexander M. Rush",
@@ -20,6 +21,7 @@ ARXIV_RESEARCHERS = [
     "Colin Raffel",
     "Dan Jurafsky",
     "Danqi Chen",
+    "David Bamman",
     "David Wadden",
     "Diyi Yang",
     "Ethan Perez",
@@ -37,6 +39,7 @@ ARXIV_RESEARCHERS = [
     "Jesse Dodge",
     "John Hewitt",
     "John Xavier Morris",
+    "Karthik Narasimhan",
     "Karthik R Narasimhan",
     "Kyle Lo",
     "Lillian Lee",
@@ -45,14 +48,17 @@ ARXIV_RESEARCHERS = [
     "Luke Zettlemoyer",
     "Maarten Sap",
     "Mike Lewis",
+    "Mitchell Gordon",
     "Neel Nanda",
     "Nelson F. Liu",
     "Niklas Muennighoff",
+    "Niloofar Mireshghallah",
     "Noah A. Smith",
     "Noah Goodman",
     "Orion Weller",
     "Pang Wei Koh",
     "Percy Liang",
+    "Peter Henderson",
     "Rafael Rafailov",
     "Samir Yitzhak Gadre",
     "Sanmi Koyejo",
@@ -60,11 +66,13 @@ ARXIV_RESEARCHERS = [
     "Sean Welleck",
     "Seungone Kim",
     "Tanya Goyal",
+    "Tatsunori Hashimoto",
     "Tri Dao",
     "William Held",
     "Xiang Lisa Li",
     "Yejin Choi",
     "Yoav Artzi",
+    "Yoon Kim",
 ]
 
 RESEARCHERS = ARXIV_RESEARCHERS + [
@@ -117,7 +125,6 @@ RESEARCHERS = ARXIV_RESEARCHERS + [
     "Stefano Ermon",
     "Swabha Swayamdipta",
     "Swaroop Mishra",
-    "Tatsunori Hashimoto",
     "Taylor Berg-Kirkpatrick",
     "Trevor Darrell",
     "Valentina Pyatkin",
