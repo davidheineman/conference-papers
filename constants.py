@@ -68,6 +68,7 @@ ARXIV_RESEARCHERS = [
     "Tanya Goyal",
     "Tatsunori Hashimoto",
     "Tri Dao",
+    "Valentin Hofmann",
     "William Held",
     "Xiang Lisa Li",
     "Yejin Choi",
