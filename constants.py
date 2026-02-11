@@ -61,6 +61,7 @@ ARXIV_RESEARCHERS = [
     "Pang Wei Koh",
     "Percy Liang",
     "Peter Henderson",
+    "Pavel Izmailov",
     "Rafael Rafailov",
     "Samir Yitzhak Gadre",
     "Sanmi Koyejo",
