@@ -123,6 +123,7 @@ RESEARCHERS = ARXIV_RESEARCHERS + [
     "Scott Geng",
     "sewoong oh",
     "Sham M Kakade",
+    "Shauli Ravfogel",
     "Sherry Yang",
     "Shuyue Stella Li",
     "Siva Reddy",
