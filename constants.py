@@ -85,6 +85,7 @@ ARXIV_RESEARCHERS = [
     "Yoav Artzi",
     "Yoon Kim",
     "Mostofa Patwary",
+    "Mohammad Shoeybi",
 ]
 
 RESEARCHERS = ARXIV_RESEARCHERS + [
