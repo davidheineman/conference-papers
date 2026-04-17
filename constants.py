@@ -11,6 +11,7 @@ ARXIV_RESEARCHERS = [
     "Alexander M Rush",
     "Alexander M. Rush",
     "Alexander Wettig",
+    "Ali Farhadi", 
     "Antoine Bosselut",
     "Ari Holtzman",
     "Ashwinee Panda",
@@ -56,6 +57,8 @@ ARXIV_RESEARCHERS = [
     "Micah Goldblum",
     "Mike Lewis",
     "Mitchell Gordon",
+    "Mohammad Shoeybi",
+    "Mostofa Patwary",
     "Neel Nanda",
     "Nelson F. Liu",
     "Niklas Muennighoff",
@@ -69,6 +72,7 @@ ARXIV_RESEARCHERS = [
     "Percy Liang",
     "Peter Henderson",
     "Rafael Rafailov",
+    "Ranjay Krishna",
     "Samir Yitzhak Gadre",
     "Sanmi Koyejo",
     "Sean J Welleck",
@@ -84,8 +88,6 @@ ARXIV_RESEARCHERS = [
     "Yejin Choi",
     "Yoav Artzi",
     "Yoon Kim",
-    "Mostofa Patwary",
-    "Mohammad Shoeybi",
 ]
 
 RESEARCHERS = ARXIV_RESEARCHERS + [
