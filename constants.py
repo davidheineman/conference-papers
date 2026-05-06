@@ -88,6 +88,11 @@ ARXIV_RESEARCHERS = [
     "Yejin Choi",
     "Yoav Artzi",
     "Yoon Kim",
+    "Jure Leskovec",
+    "Ofir Press",
+    "Margaret Li",
+    "Alisa Liu",
+    "Carlos Guestrin",
 ]
 
 RESEARCHERS = ARXIV_RESEARCHERS + [
