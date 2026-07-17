@@ -97,6 +97,7 @@ ARXIV_RESEARCHERS = [
     "Yejin Choi",
     "Yoav Artzi",
     "Yoon Kim",
+    "Aditi Raghunathan",
 ]
 
 RESEARCHERS = ARXIV_RESEARCHERS + [
