@@ -99,6 +99,7 @@ ARXIV_RESEARCHERS = [
     "Yoon Kim",
     "Aditi Raghunathan",
     "Alex Damian",
+    "Nicholas Carlini",
 ]
 
 RESEARCHERS = ARXIV_RESEARCHERS + [
