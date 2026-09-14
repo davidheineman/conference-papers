@@ -102,6 +102,7 @@ ARXIV_RESEARCHERS = [
     "Nicholas Carlini",
     "Jack Hessel",
     "Weijia Shi",
+    "Artidoro Pagnoni",
 ]
 
 RESEARCHERS = ARXIV_RESEARCHERS + [
