@@ -103,6 +103,7 @@ ARXIV_RESEARCHERS = [
     "Jack Hessel",
     "Weijia Shi",
     "Artidoro Pagnoni",
+    "Prasann Singhal",
 ]
 
 RESEARCHERS = ARXIV_RESEARCHERS + [
