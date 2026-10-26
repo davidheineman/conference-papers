@@ -104,6 +104,7 @@ ARXIV_RESEARCHERS = [
     "Weijia Shi",
     "Artidoro Pagnoni",
     "Prasann Singhal",
+    "Suhas Kotha",
 ]
 
 RESEARCHERS = ARXIV_RESEARCHERS + [
