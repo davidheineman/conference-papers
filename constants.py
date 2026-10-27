@@ -91,7 +91,6 @@ ARXIV_RESEARCHERS = [
     "Tri Dao",
     "Valentin Hofmann",
     "Wen-tau Yih",
-    "Wenting Zhao",
     "William Held",
     "Xiang Lisa Li",
     "Yejin Choi",
@@ -172,4 +171,5 @@ RESEARCHERS = ARXIV_RESEARCHERS + [
     "Yulia Tsvetkov",
     "Zhenda Xie（解振达）",
     "Zijun Liu",
+    "Wenting Zhao",
 ]
